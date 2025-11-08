@@ -86,6 +86,8 @@ async def _run_pipeline(run_id: str, run_dir: Path, csv_path: str, server: str):
         cmd_prep = ["python", "CSVDataset.py", "--input", csv_path, "--out", str(run_dir / "dataset")]
         await _run_subprocess_and_forward(run_id, cmd_prep, parse_metrics=False)
 
+        print("ARUSH EAS HERE")
+
         # 2) Run Flower client (assume run_client.py exists and accepts --server)
         await _broadcast(run_id, {"type":"status","message":"Starting federated learning client"})
         cmd_client = ["python", "run_client.py", "--server", server, "--data", str(run_dir / "dataset")]
@@ -124,6 +126,7 @@ async def _run_subprocess_and_forward(run_id: str, cmd, parse_metrics=False):
         if not sent:
             await _broadcast(run_id, {"type":"log","message":text})
     rc = await process.wait()
+
     await _broadcast(run_id, {"type":"log","message":f"Process exited with code {rc}"})
 
 # Broadcast utility

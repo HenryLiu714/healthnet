@@ -209,3 +209,5 @@ __marimo__/
 
 package-lock.json
 node_modules/
+
+runs/
