@@ -64,7 +64,8 @@ def load_data(partition_id: int):
     """Load a partition of the CIFAR-10 dataset."""
     transforms = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     trainset = CIFAR10("./dataset", train=True, download=True, transform=transforms)
-    
+    testset = CIFAR10("./dataset", train=False, download=True, transform=transforms)
+
     # Split training set into 2 partitions
     partition_size = len(trainset) // 2
     lengths = [partition_size, len(trainset) - partition_size]
@@ -75,7 +76,9 @@ def load_data(partition_id: int):
     
     # Create DataLoaders
     trainloader = DataLoader(train_partition, batch_size=32, shuffle=True)
-    return trainloader, None # No validation loader for client
+    # The client will use the full test set for validation
+    valloader = DataLoader(testset, batch_size=32)
+    return trainloader, valloader # Return both loaders
 
 # Define the Flower Client
 class FlowerClient(fl.client.NumPyClient):
