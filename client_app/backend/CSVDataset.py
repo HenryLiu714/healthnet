@@ -29,9 +29,9 @@ def main(args):
     # 2. Define features and target based on your CSV image
     # Note: Column names must match your CSV file exactly.
     try:
-        target_col = 'Health Risk'
-        numerical_cols = ['Age', 'BMI', 'Alcohol Co', 'Physical A', 'Sleep Durr', 'Stress Lev']
-        categorical_cols = ['Gender', 'Smoking S', 'Chronic Di']
+        target_col = 'Health Risk Level'
+        numerical_cols = ['Age', 'BMI', 'Alcohol Consumption', 'Physical Activity', 'Sleep Duration', 'Stress Level']
+        categorical_cols = ['Gender', 'Smoking Status', 'Chronic Disease History']
 
         # Ensure all defined columns exist in the DataFrame
         all_cols = numerical_cols + categorical_cols + [target_col]
