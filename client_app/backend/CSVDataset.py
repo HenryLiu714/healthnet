@@ -77,8 +77,6 @@ def main(args):
 
     X_final = X_final.astype(np.float32)
 
-    print(X_final)
-
     if X_final.isnull().any().any():
         print("Warning: NaNs detected in features. Filling with 0.")
         X_final = X_final.fillna(0)
