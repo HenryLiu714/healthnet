@@ -1,6 +1,7 @@
 # CSVDataset.py
 import argparse
 import json
+import numpy as np
 from pathlib import Path
 
 import pandas as pd
@@ -73,6 +74,14 @@ def main(args):
     # Combine processed features
     X_numerical_df = pd.DataFrame(X_numerical, columns=numerical_cols)
     X_final = pd.concat([X_numerical_df, X_categorical.reset_index(drop=True)], axis=1)
+
+    X_final = X_final.astype(np.float32)
+
+    print(X_final)
+
+    if X_final.isnull().any().any():
+        print("Warning: NaNs detected in features. Filling with 0.")
+        X_final = X_final.fillna(0)
 
     # --- Process Target (y) ---
     print(f"Factorizing target column: {target_col}")
