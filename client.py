@@ -1,9 +1,8 @@
 import argparse
-from collections import OrderedDict
 import warnings
+from collections import OrderedDict
 
 import flwr as fl
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,6 +12,7 @@ from torchvision.transforms import Compose, Normalize, ToTensor
 
 warnings.filterwarnings("ignore", category=UserWarning)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 # Define the same neural network as the server
 class Net(nn.Module):
@@ -33,6 +33,7 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
+
 # Define training and testing functions
 def train(net, trainloader, epochs):
     """Train the model on the training set."""
@@ -45,6 +46,7 @@ def train(net, trainloader, epochs):
             loss = criterion(net(images), labels)
             loss.backward()
             optimizer.step()
+
 
 def test(net, testloader):
     """Validate the model on the test set."""
@@ -59,6 +61,7 @@ def test(net, testloader):
     accuracy = correct / len(testloader.dataset)
     return loss, accuracy
 
+
 # Function to load a specific data partition
 def load_data(partition_id: int):
     """Load a partition of the CIFAR-10 dataset."""
@@ -70,15 +73,16 @@ def load_data(partition_id: int):
     partition_size = len(trainset) // 2
     lengths = [partition_size, len(trainset) - partition_size]
     datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
-    
+
     # Get the correct partition
     train_partition = datasets[partition_id]
-    
+
     # Create DataLoaders
     trainloader = DataLoader(train_partition, batch_size=32, shuffle=True)
     # The client will use the full test set for validation
     valloader = DataLoader(testset, batch_size=32)
-    return trainloader, valloader # Return both loaders
+    return trainloader, valloader  # Return both loaders
+
 
 # Define the Flower Client
 class FlowerClient(fl.client.NumPyClient):
@@ -101,10 +105,9 @@ class FlowerClient(fl.client.NumPyClient):
         return self.get_parameters(config={}), len(self.trainloader.dataset), {}
 
     def evaluate(self, parameters, config):
-        # This is not strictly necessary for FedAvg, but it's good practice
-        # and required by the NumPyClient interface.
         self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.valloader) # valloader is None
+        loss, accuracy = test(self.net, self.valloader)
+        # It returns the raw loss, the number of examples (for weighting), and the accuracy metric
         return float(loss), len(self.valloader.dataset), {"accuracy": float(accuracy)}
 
 
@@ -123,13 +126,15 @@ if __name__ == "__main__":
     # 2. Load the model and data
     net = Net().to(DEVICE)
     trainloader, testloader = load_data(args.partition)
-    
-    print(f"Client {args.partition} loaded {len(trainloader.dataset)} training examples.")
+
+    print(
+        f"Client {args.partition} loaded {len(trainloader.dataset)} training examples."
+    )
 
     # 3. Start the Flower client
     client = FlowerClient(net, trainloader, testloader)
     server_address = "127.0.0.1:8080"
-    
+
     print(f"Client {args.partition} connecting to server at {server_address}")
     fl.client.start_numpy_client(
         server_address=server_address,
