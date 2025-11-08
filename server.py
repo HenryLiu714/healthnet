@@ -7,8 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from torchvision.datasets import CIFAR10
-from torchvision.transforms import Compose, Normalize, ToTensor
 
 DEVICE = torch.device("cpu")  # Use CPU for the server
 
@@ -69,22 +67,19 @@ def get_evaluate_fn(testset):
 
 
 if __name__ == "__main__":
-    # 1. Load a small dataset for centralized evaluation
-    transforms = Compose([ToTensor(), Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    testset = CIFAR10("./dataset", train=False, download=True, transform=transforms)
-
-    # 2. Define the strategy
-    # The `evaluate_fn` is optional and used for centralized evaluation
+    # 1. Define the strategy for Federated Evaluation
     strategy = fl.server.strategy.FedAvg(
-        fraction_fit=1.0,  # Train on 100% of available clients
-        min_fit_clients=2,  # Wait for 2 clients to be available for training
-        min_available_clients=2,  # Wait for 2 clients to be connected to the server
-        evaluate_fn=get_evaluate_fn(testset),  # Pass the evaluation function
+        fraction_fit=1.0,
+        min_fit_clients=2,
+        min_available_clients=2,
+        # We also need to tell the strategy to run evaluation on clients
+        fraction_evaluate=1.0,  # Evaluate on all connected clients
+        min_evaluate_clients=2,  # Minimum number of clients for evaluation
     )
 
-    # 3. Start the server
+    # 2. Start the server
     server_address = "0.0.0.0:8080"
-    print(f"Starting Flower server on {server_address}")
+    print(f"Starting Flower server with Federated Evaluation on {server_address}")
     fl.server.start_server(
         server_address=server_address,
         config=fl.server.ServerConfig(num_rounds=3),
