@@ -4,13 +4,13 @@ annotated-doc==0.0.3
     # via fastapi
 annotated-types==0.7.0
     # via pydantic
-anyio==4.11.0
+anyio==4.8.0
     # via starlette
-certifi==2025.10.5
+certifi==2025.1.31
     # via requests
-cffi==2.0.0
+cffi==1.17.1
     # via cryptography
-charset-normalizer==3.4.4
+charset-normalizer==3.4.1
     # via requests
 click==8.1.8
     # via
@@ -33,23 +33,23 @@ grpcio==1.76.0
     #   grpcio-health-checking
 grpcio-health-checking==1.62.3
     # via flwr
-h11==0.16.0
+h11==0.14.0
     # via
     #   uvicorn
     #   wsproto
-idna==3.11
+idna==3.10
     # via
     #   anyio
     #   requests
 iterators==0.0.2
     # via flwr
-jinja2==3.1.6
+jinja2==3.1.5
     # via torch
-joblib==1.5.2
+joblib==1.4.2
     # via scikit-learn
 markdown-it-py==4.0.0
     # via rich
-markupsafe==3.0.3
+markupsafe==3.0.2
     # via jinja2
 mdurl==0.1.2
     # via markdown-it-py
@@ -69,13 +69,13 @@ pandas==2.3.3
     # via healthnet (pyproject.toml)
 pathspec==0.12.1
     # via flwr
-pillow==12.0.0
+pillow==11.1.0
     # via torchvision
 protobuf==4.25.8
     # via
     #   flwr
     #   grpcio-health-checking
-pycparser==2.23
+pycparser==2.22
     # via cffi
 pycryptodome==3.23.0
     # via flwr
@@ -83,17 +83,17 @@ pydantic==2.12.4
     # via fastapi
 pydantic-core==2.41.5
     # via pydantic
-pygments==2.19.2
+pygments==2.19.1
     # via rich
 python-dateutil==2.9.0.post0
     # via pandas
 python-multipart==0.0.20
     # via healthnet (pyproject.toml)
-pytz==2025.2
+pytz==2025.1
     # via pandas
-pyyaml==6.0.3
+pyyaml==6.0.2
     # via flwr
-requests==2.32.5
+requests==2.32.3
     # via flwr
 rich==13.9.4
     # via
@@ -101,9 +101,9 @@ rich==13.9.4
     #   typer
 scikit-learn==1.7.2
     # via healthnet (pyproject.toml)
-scipy==1.16.3
+scipy==1.15.2
     # via scikit-learn
-setuptools==80.9.0
+setuptools==75.8.0
     # via torch
 shellingham==1.5.4
     # via typer
@@ -115,7 +115,7 @@ starlette==0.49.3
     # via fastapi
 sympy==1.14.0
     # via torch
-threadpoolctl==3.6.0
+threadpoolctl==3.5.0
     # via scikit-learn
 tomli==2.3.0
     # via flwr
@@ -140,9 +140,9 @@ typing-extensions==4.15.0
     #   typing-inspection
 typing-inspection==0.4.2
     # via pydantic
-tzdata==2025.2
+tzdata==2025.1
     # via pandas
-urllib3==2.5.0
+urllib3==2.3.0
     # via requests
 uvicorn==0.38.0
     # via healthnet (pyproject.toml)
