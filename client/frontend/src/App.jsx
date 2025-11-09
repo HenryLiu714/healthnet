@@ -19,7 +19,7 @@ function App() {
 
   async function fetchModels() {
     try {
-      const res = await fetch("http://155.138.236.237:8080/models");
+      const res = await fetch("http://localhost:8000/models");
       const data = await res.json();
       setModels(data.models || []);
     } catch {
