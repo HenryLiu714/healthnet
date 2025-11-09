@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 function App() {
   const [file, setFile] = useState(null);
   const [runId, setRunId] = useState(null);
-  const [server, setServer] = useState("localhost:8080");
+  const [server, setServer] = useState("155.138.236.237:8080");
   const [logs, setLogs] = useState([]);
   const [metrics, setMetrics] = useState([]);
   const wsRef = useRef(null);
@@ -19,7 +19,7 @@ function App() {
 
   async function fetchModels() {
     try {
-      const res = await fetch("http://localhost:8000/models");
+      const res = await fetch("http://155.138.236.237:8080/models");
       const data = await res.json();
       setModels(data.models || []);
     } catch {
