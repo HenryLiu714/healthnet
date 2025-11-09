@@ -1,11 +1,13 @@
 # run_client.py
 import argparse
 import json
+import time
 import warnings
 from collections import OrderedDict
 from pathlib import Path
 
 import flwr as fl
+import requests
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,12 +16,14 @@ from torch.utils.data import DataLoader, TensorDataset
 warnings.filterwarnings("ignore", category=UserWarning)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 # ---
 # 1. Define Model for Tabular Data (MLP)
 # This replaces the CNN from the example.
 # ---
 class MLP(nn.Module):
     """Simple Multi-Layer Perceptron for tabular data."""
+
     def __init__(self, num_features, num_classes) -> None:
         super(MLP, self).__init__()
         self.fc1 = nn.Linear(num_features, 64)
@@ -68,12 +72,14 @@ def train(net, trainloader, epochs, server_round):
             "round": int(server_round),
             "epoch": epoch + 1,
             "loss": final_epoch_loss,
-            "accuracy": final_epoch_acc
+            "accuracy": final_epoch_acc,
         }
         print(json.dumps(metrics_payload))
         # ----------------------------
 
-        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {final_epoch_loss:.4f} | Train Acc: {final_epoch_acc:.4f}")
+        print(
+            f"Epoch {epoch + 1}/{epochs} | Train Loss: {final_epoch_loss:.4f} | Train Acc: {final_epoch_acc:.4f}"
+        )
 
 
 def test(net, testloader):
@@ -104,7 +110,7 @@ def load_data(data_dir: Path):
 
     # Load metadata
     try:
-        with open(data_dir / "metadata.json", 'r') as f:
+        with open(data_dir / "metadata.json", "r") as f:
             metadata = json.load(f)
         num_features = metadata["num_features"]
         num_classes = metadata["num_classes"]
@@ -128,7 +134,9 @@ def load_data(data_dir: Path):
     trainloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     valloader = DataLoader(test_dataset, batch_size=32)
 
-    print(f"Loaded {len(train_dataset)} training examples and {len(test_dataset)} test examples.")
+    print(
+        f"Loaded {len(train_dataset)} training examples and {len(test_dataset)} test examples."
+    )
     return trainloader, valloader, num_features, num_classes
 
 
@@ -189,10 +197,7 @@ if __name__ == "__main__":
 
     # Argument 1: --server (from backend)
     parser.add_argument(
-        "--server",
-        type=str,
-        required=True,
-        help="Address of the Flower server"
+        "--server", type=str, required=True, help="Address of the Flower server"
     )
 
     # Argument 2: --data (from backend)
@@ -200,34 +205,78 @@ if __name__ == "__main__":
         "--data",
         type=str,
         required=True,
-        help="Path to the directory containing processed data"
+        help="Path to the directory containing processed data",
     )
 
     args = parser.parse_args()
     print(f"Client script started. Server: {args.server}, Data: {args.data}")
 
     try:
-        # 2. Load the model and data
+        # 1. Load data and model
         data_dir = Path(args.data)
         trainloader, valloader, num_features, num_classes = load_data(data_dir)
-
         net = MLP(num_features=num_features, num_classes=num_classes).to(DEVICE)
         print(f"Model {type(net).__name__} loaded on {DEVICE}.")
 
-        # 3. Start the Flower client
+        # 2. Start the Flower client for federated training
         client = FlowerClient(net, trainloader, valloader)
-
         print(f"Connecting to Flower server at {args.server}")
         fl.client.start_numpy_client(
             server_address=args.server,
             client=client,
         )
-        print("Flower client connection closed.")
+        print("Federated training complete.")
+
+        # 3. Download final model from the server's API
+        print("\n--- Attempting to download final model ---")
+
+        # Derive the run directory from the --data argument
+        # e.g., if --data is "runs/abc-123/dataset", run_dir will be "runs/abc-123"
+        run_dir = data_dir.parent
+        models_dir = run_dir / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+        model_save_path = models_dir / "model.npz"
+
+        # Extract server IP from the address (e.g., "1.2.3.4:8080" -> "1.2.3.4")
+        server_ip = args.server.split(":")[0]
+        # This is the DUMMY API endpoint you mentioned.
+        # You would replace 5000 with the actual port of your model-serving API.
+        model_api_url = f"http://{server_ip}:5000/download_model"
+
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                print(
+                    f"Requesting model from {model_api_url} (attempt {attempt + 1}/{max_retries})"
+                )
+                response = requests.get(model_api_url, timeout=10)
+                response.raise_for_status()  # Raise an error for bad status codes (4xx or 5xx)
+
+                # Save the downloaded model
+                with open(model_save_path, "wb") as f:
+                    f.write(response.content)
+
+                print(
+                    f"Successfully downloaded and saved final model to: {model_save_path}"
+                )
+                # Optional: You could now load this model and run a final test
+                # final_params = np.load(model_save_path)
+                # ... etc.
+                break  # Exit the loop on success
+
+            except requests.exceptions.RequestException as e:
+                print(f"Could not download model: {e}")
+                if attempt < max_retries - 1:
+                    print("Retrying in 10 seconds...")
+                    time.sleep(10)
+                else:
+                    print("Failed to download the final model after several attempts.")
+                    # You might want to exit with an error code here
+                    # sys.exit(1)
 
     except Exception as e:
-        # Print errors to stdout so the backend can catch them
         print(f"Client script failed: {e}")
         import traceback
+
         traceback.print_exc()
-        # This will be caught by the backend as a log/error
         raise
