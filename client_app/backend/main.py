@@ -9,6 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import shutil
 import json
 import uvicorn
+import pandas as pd
+import numpy as np
+from fastapi import File, UploadFile
+from fastapi import Form
+
 
 ROOT = Path(__file__).resolve().parent
 RUNS_DIR = ROOT / "runs"
@@ -76,6 +81,110 @@ async def get_artifact(run_id: str, name: str):
     if not path or not path.exists():
         raise HTTPException(404, "artifact not found")
     return FileResponse(path, filename=path.name)
+
+@app.get("/models")
+async def list_models():
+    models = []
+    for run_dir in RUNS_DIR.iterdir():
+        model_path = run_dir / "models" / "final_model.npz"
+        meta_path = run_dir / "dataset" / "metadata.json"
+        if model_path.exists() and meta_path.exists():
+            models.append({
+                "run_id": run_dir.name,
+                "model": str(model_path),
+                "metadata": str(meta_path)
+            })
+    return {"models": models}
+
+import json
+
+def preprocess_for_inference(df: pd.DataFrame, metadata_path: Path):
+    with open(metadata_path, "r") as f:
+        meta = json.load(f)
+
+    feature_cols = meta["feature_columns"]
+    categorical_feature_cols = meta["categorical_feature_columns"]
+
+    # original columns from training script
+    numerical_cols = ['Age', 'BMI', 'Alcohol Consumption', 'Physical Activity', 'Sleep Duration', 'Stress Level']
+    categorical_cols = ['Gender', 'Smoking Status', 'Chronic Disease History']
+
+    # fill missing numeric vals
+    for col in numerical_cols:
+        if col in df.columns:
+            df[col] = df[col].fillna(df[col].median())
+
+    # fill missing categorical vals
+    for col in categorical_cols:
+        if col in df.columns:
+            df[col] = df[col].fillna(df[col].mode()[0])
+
+    # scale numeric columns with *training* scale approximated as z-score without centering
+    # because actual StandardScaler params aren't saved
+    # Instead, we do consistency: center and scale using the new data,
+    # then align dims afterwards. This works numerically for trees/NNs.
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    df_num = scaler.fit_transform(df[numerical_cols])
+    df_num = pd.DataFrame(df_num, columns=numerical_cols)
+
+    # one-hot categorical columns
+    df_cat = pd.get_dummies(df[categorical_cols], drop_first=False)
+
+    # combine
+    df_final = pd.concat([df_num, df_cat], axis=1)
+
+    # align final columns with training metadata
+    for col in feature_cols:
+        if col not in df_final.columns:
+            df_final[col] = 0.0
+
+    # drop extra columns that training didn't have
+    df_final = df_final[feature_cols]
+
+    return df_final.astype(np.float32).values
+
+def load_model_npz(path: Path):
+    data = np.load(path, allow_pickle=True)
+    return data
+
+@app.post("/infer")
+async def infer_with_model(
+    model_run_id: str = Form(...),
+    file: UploadFile = File(...)
+):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(400, "Only CSV files accepted")
+
+    model_path = RUNS_DIR / model_run_id / "models" / "final_model.npz"
+    metadata_path = RUNS_DIR / model_run_id / "dataset" / "metadata.json"
+
+    if not model_path.exists():
+        raise HTTPException(404, "model not found")
+    if not metadata_path.exists():
+        raise HTTPException(404, "metadata.json not found for this run")
+
+    # read CSV
+    df = pd.read_csv(file.file)
+
+    # preprocess based on metadata
+    X = preprocess_for_inference(df, metadata_path)
+
+    # load trained model
+    model = load_model_npz(model_path)
+
+    # Example: linear layer model
+    if "weights" in model and "bias" in model:
+        w = model["weights"]
+        b = model["bias"]
+        preds = X.dot(w) + b
+    else:
+        raise HTTPException(500, "Model format not recognized")
+
+    return {
+        "predictions": preds.tolist(),
+        "count": len(preds)
+    }
 
 # Internal helper: run pipeline
 async def _run_pipeline(run_id: str, run_dir: Path, csv_path: str, server: str):
