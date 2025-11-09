@@ -15,8 +15,8 @@
       :root {
         --bg-color: #121212;
         --surface-color: #1e1e1e;
-        --primary-color: #00a3ff; /* A vibrant blue for accents */
-        --secondary-color: #28a745; /* Green for success states */
+        --primary-color: #00a3ff;
+        --secondary-color: #28a745;
         --text-primary: #eaeaea;
         --text-secondary: #b0b0b0;
         --border-color: #333333;
@@ -52,12 +52,36 @@
         font-size: 1.8em;
       }
 
+      /* --- NEW: Styles for the Download Button --- */
+      .download-btn {
+        background-color: var(--secondary-color);
+        color: var(--text-primary);
+        padding: 10px 18px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .download-btn:hover {
+        background-color: #218838;
+      }
+
+      /* Style for when the button is disabled */
+      .download-btn.disabled {
+        background-color: #555;
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none; /* Prevents clicks */
+      }
+
       .status-indicator {
         display: flex;
         align-items: center;
         gap: 10px;
       }
 
+      /* --- (Rest of the CSS is unchanged) --- */
       .status-light {
         width: 12px;
         height: 12px;
@@ -78,7 +102,6 @@
         }
       }
 
-      /* --- Metrics Grid --- */
       .metrics-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -128,7 +151,6 @@
         word-break: break-all;
       }
 
-      /* --- Training History Section --- */
       .history-section {
         background-color: var(--surface-color);
         border: 1px solid var(--border-color);
@@ -141,10 +163,9 @@
         color: var(--text-primary);
       }
 
-      /* NEW: This container makes the table scrollable */
       .table-container {
-        max-height: 350px; /* Set a fixed height for the scrollable area */
-        overflow-y: auto; /* Add vertical scrollbar only when needed */
+        max-height: 350px;
+        overflow-y: auto;
         border-radius: 6px;
         border: 1px solid var(--border-color);
       }
@@ -164,23 +185,20 @@
       .history-table th {
         color: var(--text-secondary);
         font-weight: 600;
-        background-color: var(--surface-color); /* Must have a background */
-        /* MODIFIED: This makes the header stick to the top during scroll */
+        background-color: var(--surface-color);
         position: sticky;
         top: 0;
-        z-index: 1; /* Ensures header stays above scrolling rows */
+        z-index: 1;
       }
 
       .history-table tbody tr:hover {
         background-color: #2a2a2a;
       }
 
-      /* Remove bottom border from the last row for a cleaner look inside the container */
       .history-table tbody tr:last-child td {
         border-bottom: none;
       }
 
-      /* --- Error Container --- */
       .error-container {
         background-color: #5a2d2d;
         border: 1px solid #f48771;
@@ -197,11 +215,16 @@
   <body>
     <div class="container" id="dashboard-container">
       <div class="dashboard-header">
-        <h1>HealthNet Server Dashboard</h1>
-        <div class="status-indicator">
-          <div class="status-light"></div>
-          <span>Monitoring Live</span>
-        </div>
+        <h1>Federated Learning Dashboard</h1>
+        <!-- NEW: Download button, initially disabled -->
+        <a
+          href="/download_model"
+          id="download-button"
+          class="download-btn disabled"
+          download
+        >
+          Download Model
+        </a>
       </div>
 
       <div class="metrics-grid">
@@ -226,7 +249,6 @@
 
       <div class="history-section">
         <h2>Training History</h2>
-        <!-- NEW: Added a wrapper div to contain the scrollable table -->
         <div class="table-container">
           <table class="history-table">
             <thead>
@@ -248,7 +270,6 @@
       </div>
     </div>
 
-    <!-- Link to the external JavaScript file (no changes needed here) -->
     <script src="/static/dashboard_script.js"></script>
   </body>
 </html>

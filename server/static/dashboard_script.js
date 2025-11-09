@@ -24,6 +24,27 @@ async function updateDashboard() {
         : `${metrics.latest_accuracy_percent}%`;
     document.getElementById("latest-accuracy").textContent = latestAccuracy;
 
+    // --- NEW: Logic to control the download button state ---
+    const downloadBtn = document.getElementById("download-button");
+    if (downloadBtn) {
+      if (metrics.server_status === "TRAINING_COMPLETE") {
+        // If training is complete, enable the button
+        downloadBtn.classList.remove("disabled");
+        downloadBtn.setAttribute(
+          "title",
+          "Download the final aggregated model"
+        );
+      } else {
+        // Otherwise, ensure the button is disabled
+        downloadBtn.classList.add("disabled");
+        downloadBtn.setAttribute(
+          "title",
+          "Model is available for download once training is complete"
+        );
+      }
+    }
+    // --- End of new logic ---
+
     const historyTbody = document.getElementById("history-tbody");
     let historyHtml = "";
     if (metrics.training_history && metrics.training_history.length > 0) {
@@ -41,4 +62,4 @@ async function updateDashboard() {
   }
 }
 
-setInterval(updateDashboard, 200);
+setInterval(updateDashboard, 150);
