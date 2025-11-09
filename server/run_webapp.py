@@ -41,7 +41,7 @@ LOG_VIEW_TEMPLATE = """
 """
 
 
-# --- UNCHANGED: The log parsing function is identical ---
+# --- MODIFIED: The log parsing function now uses shorter status names ---
 def parse_log_file() -> Dict[str, Any]:
     try:
         with open(LOG_FILE_PATH, "r") as f:
@@ -56,7 +56,7 @@ def parse_log_file() -> Dict[str, Any]:
     configure_fit_regex = re.compile(r"configure_fit: strategy sampled")
     run_finished_regex = re.compile(r"Run finished")
 
-    server_status = "INITIALIZING"
+    server_status = "INIT"  # MODIFIED
     current_round = 0
     latest_accuracy = None
     history_dict = {}
@@ -65,18 +65,18 @@ def parse_log_file() -> Dict[str, Any]:
         if round_regex.search(line):
             match = round_regex.search(line)
             current_round = int(match.group(1))
-            server_status = f"STARTING_ROUND_{current_round}"
+            server_status = f"START RUN {current_round}"  # MODIFIED
         elif configure_fit_regex.search(line):
-            server_status = f"FITTING_ROUND_{current_round}"
+            server_status = f"FITTING RUN {current_round}"  # MODIFIED
         elif aggregated_accuracy_regex.search(line):
             match = aggregated_accuracy_regex.search(line)
             accuracy_value = round(float(match.group(1)) * 100, 2)
             latest_accuracy = accuracy_value
-            server_status = f"EVALUATING_ROUND_{current_round}"
+            server_status = f"EVAL RUN {current_round}"  # MODIFIED
             if current_round > 0:
                 history_dict[current_round] = accuracy_value
         elif run_finished_regex.search(line):
-            server_status = "TRAINING_COMPLETE"
+            server_status = "COMPLETE"  # MODIFIED
     
     training_history = [{"round": r, "accuracy": acc} for r, acc in sorted(history_dict.items())]
 
@@ -88,7 +88,7 @@ def parse_log_file() -> Dict[str, Any]:
     }
 
 
-# --- MODIFIED: The /dashboard endpoint now uses the Jinja2 template ---
+# --- UNCHANGED: The /dashboard endpoint is identical ---
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_dashboard(request: Request):
     metrics = parse_log_file()

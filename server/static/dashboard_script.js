@@ -1,65 +1,65 @@
-const NA_STRING = "N/A";
+document.addEventListener("DOMContentLoaded", function () {
+  const serverStatusEl = document.getElementById("server-status");
+  const currentRoundEl = document.getElementById("current-round");
+  const latestAccuracyEl = document.getElementById("latest-accuracy");
+  const historyTbodyEl = document.getElementById("history-tbody");
+  const downloadButtonEl = document.getElementById("download-button");
+  const errorBoxEl = document.getElementById("error-box");
 
-async function updateDashboard() {
-  try {
-    const response = await fetch("/metrics", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const metrics = await response.json();
-
-    if (!document.getElementById("server-status")) {
-      location.reload();
-      return;
-    }
-
-    document.getElementById("server-status").textContent =
-      metrics.server_status || NA_STRING;
-    document.getElementById("current-round").textContent =
-      metrics.current_round || "0";
-
-    const latestAccuracy =
-      metrics.latest_accuracy_percent === null
-        ? NA_STRING
-        : `${metrics.latest_accuracy_percent}%`;
-    document.getElementById("latest-accuracy").textContent = latestAccuracy;
-
-    // --- NEW: Logic to control the download button state ---
-    const downloadBtn = document.getElementById("download-button");
-    if (downloadBtn) {
-      if (metrics.server_status === "TRAINING_COMPLETE") {
-        // If training is complete, enable the button
-        downloadBtn.classList.remove("disabled");
-        downloadBtn.setAttribute(
-          "title",
-          "Download the final aggregated model"
-        );
-      } else {
-        // Otherwise, ensure the button is disabled
-        downloadBtn.classList.add("disabled");
-        downloadBtn.setAttribute(
-          "title",
-          "Model is available for download once training is complete"
-        );
+  async function updateDashboard() {
+    try {
+      const response = await fetch("/metrics");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    }
-    // --- End of new logic ---
+      const data = await response.json();
 
-    const historyTbody = document.getElementById("history-tbody");
-    let historyHtml = "";
-    if (metrics.training_history && metrics.training_history.length > 0) {
-      metrics.training_history.forEach((entry) => {
-        historyHtml += `<tr><td>${entry.round}</td><td>${entry.accuracy}%</td></tr>`;
-      });
-    }
-    historyTbody.innerHTML = historyHtml;
-  } catch (error) {
-    console.error("Failed to fetch dashboard metrics:", error);
-    const container = document.getElementById("dashboard-container");
-    if (container) {
-      container.innerHTML = `<div class="error-container"><h1>Connection Error</h1><p>Could not fetch live data from the server. Is it running? Retrying automatically...</p></div>`;
+      // Hide error box if we successfully connect
+      errorBoxEl.style.display = "none";
+
+      // 1. Update metric cards
+      serverStatusEl.textContent = data.server_status || "UNKNOWN";
+      currentRoundEl.textContent =
+        data.current_round !== undefined ? data.current_round : "N/A";
+
+      const accuracy = data.latest_accuracy_percent;
+      latestAccuracyEl.textContent =
+        accuracy !== null && accuracy !== undefined ? `${accuracy}%` : "N/A";
+
+      // 2. Update the download button state
+      if (data.server_status === "COMPLETE") {
+        downloadButtonEl.classList.remove("disabled");
+      } else {
+        downloadButtonEl.classList.add("disabled");
+      }
+
+      // 3. Update the training history table
+      historyTbodyEl.innerHTML = ""; // Clear existing rows
+      if (data.training_history && data.training_history.length > 0) {
+        data.training_history.forEach((entry) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${entry.round}</td>
+            <td>${entry.accuracy}%</td>
+          `;
+          historyTbodyEl.appendChild(row);
+        });
+      } else {
+        // Optional: show a message when history is empty
+        const row = document.createElement("tr");
+        row.innerHTML = `<td colspan="2" style="text-align:center;">No training history yet.</td>`;
+        historyTbodyEl.appendChild(row);
+      }
+    } catch (error) {
+      console.error("Failed to fetch metrics:", error);
+      // Show error box if we fail to connect
+      errorBoxEl.style.display = "block";
+      // Also disable the button on error
+      downloadButtonEl.classList.add("disabled");
     }
   }
-}
 
-setInterval(updateDashboard, 150);
+  // Fetch data immediately on page load, then every 5 seconds
+  updateDashboard();
+  setInterval(updateDashboard, 150);
+});
