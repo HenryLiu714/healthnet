@@ -173,18 +173,34 @@ async def infer_with_model(
     # load trained model
     model = load_model_npz(model_path)
 
+    weights_and_biases = [model[key] for key in model.files]
+
     # Example: linear layer model
-    if "weights" in model and "bias" in model:
-        w = model["weights"]
-        b = model["bias"]
-        preds = X.dot(w) + b
-    else:
-        raise HTTPException(500, "Model format not recognized")
+    preds = forward_nn(X, weights_and_biases)
+
+    # if classification, optionally:
+    pred_classes = np.argmax(preds, axis=1)
 
     return {
-        "predictions": preds.tolist(),
-        "count": len(preds)
+        "predictions": pred_classes.tolist(),
+        "count": len(pred_classes)
     }
+
+def forward_nn(X, weights_and_biases):
+    A = X
+    num_layers = len(weights_and_biases) // 2  # each layer has W, b
+    for i in range(num_layers):
+        W = weights_and_biases[2*i]
+        b = weights_and_biases[2*i + 1]
+        A = A.dot(W.T) + b  # transpose W to align dims
+        if i < num_layers - 1:
+            # ReLU hidden layers
+            A = np.maximum(0, A)
+    return A
+
+def softmax(x):
+    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return e_x / e_x.sum(axis=1, keepdims=True)
 
 # Internal helper: run pipeline
 async def _run_pipeline(run_id: str, run_dir: Path, csv_path: str, server: str):
