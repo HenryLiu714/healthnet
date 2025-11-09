@@ -11,6 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
     rounds: document.getElementById("rounds-input"),
     clients: document.getElementById("clients-input"),
   };
+  const dirtyFields = new Set();
+
+  Object.entries(trainingInputs).forEach(([key, input]) => {
+    if (!input) {
+      return;
+    }
+    input.addEventListener("input", () => dirtyFields.add(key));
+  });
 
   /**
    * Formats a raw server status string into a human-readable version.
@@ -65,8 +73,13 @@ document.addEventListener("DOMContentLoaded", () => {
     trainingMessageEl.style.color = isError ? "#f48771" : "#b0b0b0";
   }
 
-  function updateInputValue(input, value) {
-    if (!input || value === undefined || document.activeElement === input) {
+  function updateInputValue(fieldName, input, value) {
+    if (
+      !input ||
+      value === undefined ||
+      document.activeElement === input ||
+      dirtyFields.has(fieldName)
+    ) {
       return;
     }
     input.value = value;
@@ -144,12 +157,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (metrics.training_args) {
         updateInputValue(
+          "features",
           trainingInputs.features,
           metrics.training_args.features
         );
-        updateInputValue(trainingInputs.classes, metrics.training_args.classes);
-        updateInputValue(trainingInputs.rounds, metrics.training_args.rounds);
-        updateInputValue(trainingInputs.clients, metrics.training_args.clients);
+        updateInputValue(
+          "classes",
+          trainingInputs.classes,
+          metrics.training_args.classes
+        );
+        updateInputValue(
+          "rounds",
+          trainingInputs.rounds,
+          metrics.training_args.rounds
+        );
+        updateInputValue(
+          "clients",
+          trainingInputs.clients,
+          metrics.training_args.clients
+        );
       }
     } catch (error) {
       console.error("Failed to fetch dashboard metrics:", error);
@@ -196,6 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
         startBtn.disabled = true;
         const data = await postJson("/training/start", payload);
         setTrainingMessage(`Training started (PID ${data.pid ?? "N/A"}).`);
+        dirtyFields.clear();
       } catch (error) {
         console.error(error);
         setTrainingMessage(error.message, true);
@@ -222,5 +249,5 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- SCRIPT EXECUTION ---
   initializeDashboard(); // Format the initial server-rendered text
   updateDashboard(); // Fetch the first set of live data
-  setInterval(updateDashboard, 150); // Poll for new data every 1.5 seconds
+  setInterval(updateDashboard, 1500); // Poll for new data every 1.5 seconds
 });
