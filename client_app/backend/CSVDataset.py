@@ -122,6 +122,10 @@ def main(args):
         "num_classes": num_classes,
         "classes_map": list(unique_classes)
     }
+
+    metadata["feature_columns"] = list(X_final.columns)
+    metadata["categorical_feature_columns"] = list(X_categorical.columns)
+
     meta_path = out_dir / "metadata.json"
     with open(meta_path, 'w') as f:
         json.dump(metadata, f, indent=2)
@@ -134,6 +138,8 @@ def main(args):
     print("  Use these values to start your server:")
     print(f"  python server.py --features {num_features} --classes {num_classes}")
     print("="*30 + "\n")
+
+
 
 
 if __name__ == "__main__":
