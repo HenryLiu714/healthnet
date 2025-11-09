@@ -213,3 +213,4 @@ node_modules/
 runs/
 archive/
 
+.vite/
