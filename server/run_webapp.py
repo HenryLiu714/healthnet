@@ -1,20 +1,95 @@
 import html
-import uvicorn
+import os
 import re
-from typing import Dict, Any
+import signal
+import subprocess
+import threading
+import uvicorn
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 # --- MODIFIED: Add new imports for templating and static files ---
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
 # --- Configuration ---
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_FILE_PATH = str(SCRIPT_DIR / "server.log")
 FILTER_KEYWORDS = ["uvicorn.access"]
 MODEL_FILE_PATH = SCRIPT_DIR / "final_model.npz"
+DEFAULT_TRAINING_ARGS = {
+    "features": 15,
+    "classes": 3,
+    "rounds": 3,
+    "clients": 1,
+}
+_DEFAULT_TEST_PATH = SCRIPT_DIR.parent / "test" / "server.py"
+TRAINING_SCRIPT = _DEFAULT_TEST_PATH if _DEFAULT_TEST_PATH.exists() else SCRIPT_DIR / "server.py"
+TRAINING_WORKDIR = SCRIPT_DIR  # Keep logs/models aligned with dashboard expectations
+
+training_process: Optional[subprocess.Popen] = None
+training_lock = threading.Lock()
+current_training_args = DEFAULT_TRAINING_ARGS.copy()
+
+
+class TrainingConfig(BaseModel):
+    features: int = Field(DEFAULT_TRAINING_ARGS["features"], ge=1)
+    classes: int = Field(DEFAULT_TRAINING_ARGS["classes"], ge=1)
+    rounds: int = Field(DEFAULT_TRAINING_ARGS["rounds"], ge=1)
+    clients: int = Field(DEFAULT_TRAINING_ARGS["clients"], ge=1)
+
+
+def _build_training_command(config: TrainingConfig) -> List[str]:
+    return [
+        "python3",
+        str(TRAINING_SCRIPT),
+        "--features",
+        str(config.features),
+        "--classes",
+        str(config.classes),
+        "--rounds",
+        str(config.rounds),
+        "--clients",
+        str(config.clients),
+    ]
+
+
+def _cleanup_training_process_locked() -> None:
+    """Reset process reference if the subprocess already finished."""
+    global training_process
+    if training_process and training_process.poll() is not None:
+        training_process = None
+
+
+def _get_training_state() -> Dict[str, Any]:
+    with training_lock:
+        _cleanup_training_process_locked()
+        running = training_process is not None
+        pid = training_process.pid if running else None
+        return {
+            "training_active": running,
+            "training_pid": pid,
+            "training_args": current_training_args.copy(),
+            "training_command": (
+                _build_training_command(TrainingConfig(**current_training_args))
+                if running
+                else []
+            ),
+        }
+
+
+def _terminate_process(proc: subprocess.Popen) -> None:
+    """Attempt a graceful stop and fall back to kill if needed."""
+    try:
+        if os.name != "nt":
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        else:
+            proc.terminate()
+    except ProcessLookupError:
+        return
 
 app = FastAPI()
 
@@ -95,6 +170,7 @@ def get_dashboard(request: Request):
     if "error" in metrics:
         return HTMLResponse(content=f"<h1>Error</h1><p>{metrics['error']}</p>", status_code=500)
 
+    metrics.update(_get_training_state())
     # Use the template response to render dashboard.html
     return templates.TemplateResponse("dashboard.html", {"request": request, "metrics": metrics})
 
@@ -105,7 +181,76 @@ def get_metrics_api():
     metrics = parse_log_file()
     if "error" in metrics:
         raise HTTPException(status_code=500, detail=metrics["error"])
+    metrics.update(_get_training_state())
     return metrics
+
+
+@app.post("/training/start", response_class=JSONResponse)
+def start_training(config: TrainingConfig):
+    if not TRAINING_SCRIPT.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Training script not found at {TRAINING_SCRIPT}.",
+        )
+
+    with training_lock:
+        global training_process, current_training_args
+        _cleanup_training_process_locked()
+        if training_process is not None:
+            raise HTTPException(status_code=409, detail="Training is already running.")
+
+        command = _build_training_command(config)
+        popen_kwargs: Dict[str, Any] = {
+            "cwd": TRAINING_WORKDIR,
+            "stderr": subprocess.STDOUT,
+        }
+        if os.name != "nt":
+            popen_kwargs["preexec_fn"] = os.setsid
+        else:
+            popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+
+        try:
+            training_process = subprocess.Popen(command, **popen_kwargs)
+            current_training_args = config.dict()
+        except Exception as exc:
+            training_process = None
+            raise HTTPException(status_code=500, detail=f"Failed to start training: {exc}") from exc
+
+        return {
+            "status": "started",
+            "pid": training_process.pid,
+            "command": command,
+            "args": current_training_args,
+        }
+
+
+@app.post("/training/stop", response_class=JSONResponse)
+def stop_training():
+    with training_lock:
+        global training_process
+        _cleanup_training_process_locked()
+        if training_process is None:
+            raise HTTPException(status_code=409, detail="No active training process to stop.")
+
+        proc = training_process
+
+    # Terminate outside the lock to avoid blocking other requests during wait.
+    _terminate_process(proc)
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    finally:
+        with training_lock:
+            if training_process is proc:
+                training_process = None
+
+    return {"status": "stopped"}
+
+
+@app.get("/training/status", response_class=JSONResponse)
+def training_status():
+    return _get_training_state()
 
 
 # --- UNCHANGED: The /log_view endpoint is identical ---

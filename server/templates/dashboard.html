@@ -52,6 +52,93 @@
         font-size: 1.8em;
       }
 
+      .training-controls {
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 24px;
+        margin-bottom: 30px;
+      }
+
+      .training-controls h2 {
+        margin: 0 0 12px 0;
+        font-size: 1.4em;
+        color: var(--text-primary);
+      }
+
+      .training-status {
+        color: var(--text-secondary);
+        font-size: 0.95em;
+        margin-bottom: 18px;
+      }
+
+      .training-status strong {
+        color: var(--text-primary);
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .form-control {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .form-control label {
+        color: var(--text-secondary);
+        font-size: 0.9em;
+      }
+
+      .form-control input {
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        background-color: #141414;
+        color: var(--text-primary);
+        font-size: 1em;
+      }
+
+      .control-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+
+      .control-buttons button {
+        border: none;
+        border-radius: 6px;
+        padding: 10px 18px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .start-btn {
+        background-color: var(--primary-color);
+        color: var(--bg-color);
+      }
+
+      .stop-btn {
+        background-color: #d9534f;
+        color: var(--text-primary);
+      }
+
+      .control-buttons button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .training-message {
+        min-height: 20px;
+        font-size: 0.95em;
+        color: var(--text-secondary);
+      }
+
       /* --- NEW: Styles for the Download Button --- */
       .download-btn {
         background-color: var(--secondary-color);
@@ -225,6 +312,85 @@
         >
           Download Model
         </a>
+      </div>
+
+      <div class="training-controls">
+        <h2>Training Controls</h2>
+        <div class="training-status">
+          Status:
+          <strong id="training-status-text">
+            {% if metrics.training_active %}
+              Running (PID {{ metrics.training_pid or 'N/A' }})
+            {% else %}
+              Idle
+            {% endif %}
+          </strong>
+        </div>
+
+        <form id="training-form">
+          <div class="form-grid">
+            <div class="form-control">
+              <label for="features-input">Features</label>
+              <input
+                type="number"
+                min="1"
+                id="features-input"
+                name="features"
+                value="{{ metrics.training_args.get('features', 15) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="classes-input">Classes</label>
+              <input
+                type="number"
+                min="1"
+                id="classes-input"
+                name="classes"
+                value="{{ metrics.training_args.get('classes', 3) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="rounds-input">Rounds</label>
+              <input
+                type="number"
+                min="1"
+                id="rounds-input"
+                name="rounds"
+                value="{{ metrics.training_args.get('rounds', 3) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="clients-input">Clients</label>
+              <input
+                type="number"
+                min="1"
+                id="clients-input"
+                name="clients"
+                value="{{ metrics.training_args.get('clients', 1) }}"
+              />
+            </div>
+          </div>
+
+          <div class="control-buttons">
+            <button
+              type="submit"
+              id="start-training-btn"
+              class="start-btn"
+              {% if metrics.training_active %}disabled{% endif %}
+            >
+              Start Training
+            </button>
+            <button
+              type="button"
+              id="stop-training-btn"
+              class="stop-btn"
+              {% if not metrics.training_active %}disabled{% endif %}
+            >
+              Stop Training
+            </button>
+          </div>
+          <p id="training-message" class="training-message"></p>
+        </form>
       </div>
 
       <div class="metrics-grid">
