@@ -4,19 +4,33 @@ import re
 import signal
 import subprocess
 import threading
-import uvicorn
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-# --- MODIFIED: Add new imports for templating and static files ---
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from env_loader import get_env_int, get_env_str, load_env_file
+
 # --- Configuration ---
 SCRIPT_DIR = Path(__file__).resolve().parent
+load_env_file(SCRIPT_DIR / ".env")
+
+FASTAPI_HOST = get_env_str("FASTAPI_HOST", "0.0.0.0")
+FASTAPI_PORT = get_env_int("FASTAPI_PORT", 8002)
+PUBLIC_DASHBOARD_DOMAIN = get_env_str(
+    "PUBLIC_DASHBOARD_DOMAIN",
+    f"http://{FASTAPI_HOST}:{FASTAPI_PORT}",
+)
+
+FLOWER_SERVER_HOST = get_env_str("FLOWER_SERVER_HOST", "0.0.0.0")
+FLOWER_SERVER_PORT = get_env_int("FLOWER_SERVER_PORT", 8080)
+FLOWER_SERVER_ADDRESS = f"{FLOWER_SERVER_HOST}:{FLOWER_SERVER_PORT}"
+
 LOG_FILE_PATH = str(SCRIPT_DIR / "server.log")
 FILTER_KEYWORDS = ["uvicorn.access"]
 MODEL_FILE_PATH = SCRIPT_DIR / "final_model.npz"
@@ -29,6 +43,9 @@ DEFAULT_TRAINING_ARGS = {
 _DEFAULT_TEST_PATH = SCRIPT_DIR.parent / "test" / "server.py"
 TRAINING_SCRIPT = _DEFAULT_TEST_PATH if _DEFAULT_TEST_PATH.exists() else SCRIPT_DIR / "server.py"
 TRAINING_WORKDIR = SCRIPT_DIR  # Keep logs/models aligned with dashboard expectations
+
+STATIC_DIR = SCRIPT_DIR / "static"
+TEMPLATE_DIR = SCRIPT_DIR / "templates"
 
 training_process: Optional[subprocess.Popen] = None
 training_lock = threading.Lock()
@@ -93,9 +110,8 @@ def _terminate_process(proc: subprocess.Popen) -> None:
 
 app = FastAPI()
 
-# --- MODIFIED: Set up static file and template directories ---
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
 # --- MODIFIED: The DASHBOARD_TEMPLATE string is now removed ---
@@ -283,9 +299,10 @@ def get_log_website(request: Request):
 # --- UNCHANGED: The root endpoint is identical ---
 @app.get("/", response_class=HTMLResponse)
 def root():
-    return """
+    return f"""
     <html><head><title>Flower App</title></head><body style="font-family:sans-serif;background-color:#1e1e1e;color:#d4d4d4;text-align:center;padding-top:50px;">
     <h1>Federated Learning Monitor</h1><p><a href="/dashboard" style="font-size:1.2em;color:#4ec9b0;">Go to Live Dashboard</a></p><p><a href="/log_view" style="color:#9cdcfe;">View Raw Logs</a></p><p><a href="/metrics" style="color:#9cdcfe;">Access Metrics API (JSON)</a></p>
+    <p style="margin-top:30px;color:#9cdcfe;">Public dashboard URL: {PUBLIC_DASHBOARD_DOMAIN}</p>
     </body></html>
     """
 
@@ -311,6 +328,7 @@ async def download_model():
 
 # --- UNCHANGED: The main execution block is identical ---
 if __name__ == "__main__":
-    print("Starting web app. Go to http://127.0.0.1:8000 for options.")
+    print(f"Starting web app. Go to {PUBLIC_DASHBOARD_DOMAIN} for options.")
     print(f"Reading logs from: {LOG_FILE_PATH}")
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    print(f"Flower server address (for reference): {FLOWER_SERVER_ADDRESS}")
+    uvicorn.run(app, host=FASTAPI_HOST, port=FASTAPI_PORT)
