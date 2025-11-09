@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Flower Training Dashboard</title>
+    <!-- Google Fonts for a cleaner, modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg-color: #121212;
+        --surface-color: #1e1e1e;
+        --primary-color: #00a3ff; /* A vibrant blue for accents */
+        --secondary-color: #28a745; /* Green for success states */
+        --text-primary: #eaeaea;
+        --text-secondary: #b0b0b0;
+        --border-color: #333333;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+        margin: 0;
+        padding: 24px;
+      }
+
+      .container {
+        max-width: 950px;
+        margin: auto;
+      }
+
+      /* --- Header --- */
+      .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+      }
+
+      .dashboard-header h1 {
+        color: var(--text-primary);
+        margin: 0;
+        font-size: 1.8em;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-light {
+        width: 12px;
+        height: 12px;
+        background-color: var(--secondary-color);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+      }
+
+      /* --- Metrics Grid --- */
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .metric-card {
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        padding: 24px;
+        border-radius: 8px;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      .metric-card h3 {
+        margin: 0 0 8px 0;
+        color: var(--text-secondary);
+        font-size: 1em;
+        font-weight: 600;
+      }
+
+      .metric-card p {
+        font-size: 2.2em;
+        margin: 0;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
+
+      .status-badge {
+        font-weight: bold;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background-color: var(--primary-color);
+        color: var(--bg-color);
+        font-size: 1.2em;
+        line-height: 1.4;
+        text-align: center;
+        margin-top: auto;
+        word-break: break-all;
+      }
+
+      /* --- Training History Section --- */
+      .history-section {
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 24px;
+      }
+
+      .history-section h2 {
+        margin-top: 0;
+        color: var(--text-primary);
+      }
+
+      /* NEW: This container makes the table scrollable */
+      .table-container {
+        max-height: 350px; /* Set a fixed height for the scrollable area */
+        overflow-y: auto; /* Add vertical scrollbar only when needed */
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .history-table th,
+      .history-table td {
+        padding: 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .history-table th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        background-color: var(--surface-color); /* Must have a background */
+        /* MODIFIED: This makes the header stick to the top during scroll */
+        position: sticky;
+        top: 0;
+        z-index: 1; /* Ensures header stays above scrolling rows */
+      }
+
+      .history-table tbody tr:hover {
+        background-color: #2a2a2a;
+      }
+
+      /* Remove bottom border from the last row for a cleaner look inside the container */
+      .history-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* --- Error Container --- */
+      .error-container {
+        background-color: #5a2d2d;
+        border: 1px solid #f48771;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .error-container h1 {
+        color: #f48771;
+        border-bottom: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="dashboard-container">
+      <div class="dashboard-header">
+        <h1>Federated Learning Dashboard</h1>
+        <div class="status-indicator">
+          <div class="status-light"></div>
+          <span>Monitoring Live</span>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <h3>Server Status</h3>
+          <span id="server-status" class="status-badge"
+            >{{ metrics.server_status }}</span
+          >
+        </div>
+        <div class="metric-card">
+          <h3>Current Round</h3>
+          <p id="current-round">{{ metrics.current_round }}</p>
+        </div>
+        <div class="metric-card">
+          <h3>Latest Accuracy</h3>
+          <p id="latest-accuracy">
+            {% set latest_acc = metrics.get("latest_accuracy_percent") %} {{
+            latest_acc if latest_acc is not none else 'N/A' }}%
+          </p>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <h2>Training History</h2>
+        <!-- NEW: Added a wrapper div to contain the scrollable table -->
+        <div class="table-container">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Round</th>
+                <th>Accuracy (%)</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              {% for entry in metrics.training_history %}
+              <tr>
+                <td>{{ entry.round }}</td>
+                <td>{{ entry.accuracy }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Link to the external JavaScript file (no changes needed here) -->
+    <script src="/static/dashboard_script.js"></script>
+  </body>
+</html>
