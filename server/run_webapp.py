@@ -5,7 +5,7 @@ from typing import Dict, Any
 from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 # --- MODIFIED: Add new imports for templating and static files ---
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 SCRIPT_DIR = Path(__file__).resolve().parent
 LOG_FILE_PATH = str(SCRIPT_DIR / "server.log")
 FILTER_KEYWORDS = ["uvicorn.access"]
+MODEL_FILE_PATH = SCRIPT_DIR / "final_model.npz"
 
 app = FastAPI()
 
@@ -143,6 +144,25 @@ def root():
     </body></html>
     """
 
+@app.get("/download_model")
+async def download_model():
+    """
+    This endpoint allows clients to download the final aggregated model.
+    It returns the file if it exists, otherwise returns a 404 error.
+    """
+    if not MODEL_FILE_PATH.exists():
+        # Raise an HTTPException, which FastAPI turns into a proper 404 response
+        raise HTTPException(
+            status_code=404,
+            detail="Model file not found. The training process may not be complete yet."
+        )
+
+    # Use FileResponse to efficiently stream the file to the client
+    return FileResponse(
+        path=MODEL_FILE_PATH,
+        filename="model.npz",
+        media_type="application/octet-stream" # A generic type for binary files
+    )
 
 # --- UNCHANGED: The main execution block is identical ---
 if __name__ == "__main__":
