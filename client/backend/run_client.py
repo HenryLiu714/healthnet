@@ -235,13 +235,12 @@ if __name__ == "__main__":
         run_dir = data_dir.parent
         models_dir = run_dir / "models"
         models_dir.mkdir(parents=True, exist_ok=True)
-        model_save_path = models_dir / "model.npz"
+        model_save_path = models_dir / "final_model.npz"
 
         # Extract server IP from the address (e.g., "1.2.3.4:8080" -> "1.2.3.4")
         server_ip = args.server.split(":")[0]
-        # This is the DUMMY API endpoint you mentioned.
-        # You would replace 5000 with the actual port of your model-serving API.
-        model_api_url = f"http://{server_ip}:5000/download_model"
+
+        model_api_url = f"http://{server_ip}:8002/download_model"
 
         max_retries = 5
         for attempt in range(max_retries):
@@ -249,7 +248,7 @@ if __name__ == "__main__":
                 print(
                     f"Requesting model from {model_api_url} (attempt {attempt + 1}/{max_retries})"
                 )
-                response = requests.get(model_api_url, timeout=10)
+                response = requests.get(model_api_url, timeout=15)
                 response.raise_for_status()  # Raise an error for bad status codes (4xx or 5xx)
 
                 # Save the downloaded model

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>healthNet Server Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #f9f6ee;
+        --surface-color: #ffffff;
+        --accent-color: #ef5d60;
+        --accent-dark: #d94b4f;
+        --text-main: #54494b;
+        --text-muted: #7a6f70;
+        --border-color: #e0e0e0;
+        --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        padding: 40px 20px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+      }
+      .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 20px;
+      }
+      .dashboard-header h1 {
+        color: var(--accent-color);
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .download-btn {
+        background: linear-gradient(
+          90deg,
+          var(--accent-color),
+          var(--accent-dark)
+        );
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.25s ease;
+      }
+      .download-btn:hover {
+        opacity: 0.85;
+      }
+      .download-btn.disabled {
+        background: #ccc;
+        color: #fff;
+        cursor: not-allowed;
+        opacity: 0.6;
+        pointer-events: none;
+      }
+      .training-controls {
+        background-color: var(--surface-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 28px;
+      }
+      .training-controls h2 {
+        margin-top: 0;
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 12px;
+      }
+      .training-status {
+        font-size: 15px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
+      .training-status strong {
+        color: var(--accent-color);
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .form-control {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-control label {
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+      .form-control input {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background-color: #fafafa;
+        color: var(--text-main);
+        font-size: 15px;
+        transition: border 0.2s ease;
+      }
+      .form-control input:focus {
+        outline: none;
+        border: 1px solid var(--accent-color);
+      }
+      .control-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .control-buttons button {
+        border: none;
+        border-radius: 10px;
+        padding: 12px 20px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 15px;
+        transition: opacity 0.2s ease;
+      }
+      .start-btn {
+        background: linear-gradient(
+          90deg,
+          var(--accent-color),
+          var(--accent-dark)
+        );
+        color: #fff;
+      }
+      .stop-btn {
+        background-color: #f56c6c;
+        color: #fff;
+      }
+      .control-buttons button:hover {
+        opacity: 0.9;
+      }
+      .control-buttons button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .training-message {
+        min-height: 20px;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 24px;
+      }
+      .metric-card {
+        background-color: var(--surface-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 26px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        transition: transform 0.2s ease;
+      }
+      .metric-card:hover {
+        transform: translateY(-3px);
+      }
+      .metric-card h3 {
+        margin: 0 0 8px 0;
+        color: var(--text-muted);
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .metric-card p,
+      .metric-card span {
+        font-size: 30px;
+        font-weight: 700;
+        color: var(--accent-color);
+        margin: 0;
+      }
+      .status-badge {
+        display: inline-block;
+        background: none;
+        color: var(--accent-color);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin-top: 8px;
+        text-align: center;
+        word-break: break-word;
+      }
+      .history-section {
+        background-color: var(--surface-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        height: 400px;
+      }
+      .history-section h2 {
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      .table-container {
+        flex: 1;
+        overflow-y: auto;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+      }
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .history-table th,
+      .history-table td {
+        padding: 14px 18px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+      .history-table th {
+        background-color: var(--text-main);
+        color: #fff;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .history-table tbody tr:hover {
+        background-color: #f9f9f9;
+      }
+      .error-container {
+        background-color: #ffe4e1;
+        border: 1px solid #f48771;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        color: var(--accent-dark);
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 20px;
+        }
+        .dashboard-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .metric-card p {
+          font-size: 24px;
+        }
+        .history-section {
+          height: auto;
+          max-height: 60vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="dashboard-container">
+      <div class="dashboard-header">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <img
+            src="/static/healthnet_logo.png"
+            alt="HealthNet Logo"
+            style="height: 120px; width: auto; border-radius: 2px"
+          />
+          <h1 style="margin: 0">Server Dashboard</h1>
+        </div>
+        <a
+          href="/download_model"
+          id="download-button"
+          class="download-btn disabled"
+          download
+        >
+          Download Model
+        </a>
+      </div>
+
+      <div class="training-controls">
+        <h2>Training Controls</h2>
+        <div class="training-status">
+          Status:
+          <strong id="training-status-text">
+            {% if metrics.training_active %} Running (PID {{
+            metrics.training_pid or 'N/A' }}) {% else %} Idle {% endif %}
+          </strong>
+        </div>
+        <form id="training-form">
+          <div class="form-grid">
+            <div class="form-control">
+              <label for="features-input">Features</label>
+              <input
+                type="number"
+                min="1"
+                id="features-input"
+                name="features"
+                value="{{ metrics.training_args.get('features', 15) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="classes-input">Classes</label>
+              <input
+                type="number"
+                min="1"
+                id="classes-input"
+                name="classes"
+                value="{{ metrics.training_args.get('classes', 3) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="rounds-input">Rounds</label>
+              <input
+                type="number"
+                min="1"
+                id="rounds-input"
+                name="rounds"
+                value="{{ metrics.training_args.get('rounds', 3) }}"
+              />
+            </div>
+            <div class="form-control">
+              <label for="clients-input">Clients</label>
+              <input
+                type="number"
+                min="1"
+                id="clients-input"
+                name="clients"
+                value="{{ metrics.training_args.get('clients', 1) }}"
+              />
+            </div>
+          </div>
+          <div class="control-buttons">
+            <button
+              type="submit"
+              id="start-training-btn"
+              class="start-btn"
+              {%
+              if
+              metrics.training_active
+              %}disabled{%
+              endif
+              %}
+            >
+              Start Training
+            </button>
+            <button
+              type="button"
+              id="stop-training-btn"
+              class="stop-btn"
+              {%
+              if
+              not
+              metrics.training_active
+              %}disabled{%
+              endif
+              %}
+            >
+              Stop Training
+            </button>
+          </div>
+          <p id="training-message" class="training-message"></p>
+        </form>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <h3>Server Status</h3>
+          <span
+            id="server-status"
+            class="status-badge"
+            data-initial-status="{{ metrics.server_status }}"
+          ></span>
+        </div>
+        <div class="metric-card">
+          <h3>Current Round</h3>
+          <p id="current-round">{{ metrics.current_round }}</p>
+        </div>
+        <div class="metric-card">
+          <h3>Latest Accuracy</h3>
+          <p id="latest-accuracy">
+            {% set latest_acc = metrics.get("latest_accuracy_percent") %} {{
+            latest_acc if latest_acc is not none else 'N/A' }}%
+          </p>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <h2>Training History</h2>
+        <div class="table-container">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Round</th>
+                <th>Accuracy (%)</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              {% for entry in metrics.training_history %}
+              <tr>
+                <td>{{ entry.round }}</td>
+                <td>{{ entry.accuracy }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <script src="/static/dashboard_script.js"></script>
+  </body>
+</html>

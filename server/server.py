@@ -1,5 +1,7 @@
 # server.py
 import argparse
+import logging
+from logging import FileHandler, StreamHandler
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -14,13 +16,14 @@ DEVICE = torch.device("cpu")  # Server typically runs on CPU
 
 # ---
 # 1. Define Model for Tabular Data (MLP)
-#    This MUST match the model defined in run_client.py
 # ---
 class MLP(nn.Module):
     """Simple Multi-Layer Perceptron for tabular data."""
 
     def __init__(self, num_features, num_classes) -> None:
         super(MLP, self).__init__()
+        # Changed print to logging.info
+        logging.info(f"Initializing server model: {num_features} features, {num_classes} classes")
         print(
             f"Initializing server model: {num_features} features, {num_classes} classes"
         )
@@ -35,7 +38,7 @@ class MLP(nn.Module):
 
 
 # ---
-# 2. Helper Functions for Parameter Handling
+# 2. Helper Functions for Parameter Handling (Unchanged)
 # ---
 def get_parameters(net) -> List[np.ndarray]:
     """Get model parameters as a list of NumPy arrays."""
@@ -63,7 +66,8 @@ def fit_config(server_round: int) -> Dict[str, fl.common.Scalar]:
         "server_round": server_round,  # Pass the current round number
         "local_epochs": 2,             # Tell clients to train for 2 local epochs
     }
-    print(f"Server: Sending fit config for round {server_round}: {config}")
+    # Changed print to logging.info
+    logging.info(f"Server: Sending fit config for round {server_round}: {config}")
     return config
 
 
@@ -71,33 +75,31 @@ def evaluate_metrics_aggregation(
     all_client_metrics: List[Tuple[int, Dict[str, fl.common.Scalar]]],
 ) -> Dict[str, fl.common.Scalar]:
     """Aggregate evaluation metrics from all clients."""
-    print(f"Server: Aggregating metrics from {len(all_client_metrics)} clients...")
-
-    # This function receives a list of tuples: (num_examples, metrics_dict)
-    # We will average the 'accuracy' metric, weighted by the number of examples
-
+    # Changed print to logging.info
+    logging.info(f"Server: Aggregating metrics from {len(all_client_metrics)} clients...")
     total_examples = sum([num_examples for num_examples, _ in all_client_metrics])
 
     if total_examples == 0:
-        print("Warning: No examples found for metric aggregation.")
-        return {"accuracy": 0.0}  # Avoid division by zero
+        # Changed print to logging.warning
+        logging.warning("Warning: No examples found for metric aggregation.")
+        return {"accuracy": 0.0}
 
     weighted_accuracy = 0.0
     for num_examples, metrics in all_client_metrics:
         if "accuracy" in metrics:
             accuracy = metrics["accuracy"]
             if not isinstance(accuracy, (float, int)):
-                print(f"Warning: Skipping non-scalar accuracy metric: {accuracy!r}")
+                # Changed print to logging.warning
+                logging.warning(f"Warning: Skipping non-scalar accuracy metric: {accuracy}")
                 continue
             weighted_accuracy += num_examples * accuracy
         else:
-            print(f"Warning: 'accuracy' metric not found in client metrics: {metrics}")
+            # Changed print to logging.warning
+            logging.warning(f"Warning: 'accuracy' metric not found in client metrics: {metrics}")
 
     aggregated_accuracy = weighted_accuracy / total_examples
-
-    print(f"Server: Aggregated weighted accuracy: {aggregated_accuracy:.4f}")
-
-    # Return the aggregated metric
+    # Changed print to logging.info
+    logging.info(f"Server: Aggregated weighted accuracy: {aggregated_accuracy:.4f}")
     return {"accuracy": aggregated_accuracy}
 
 
@@ -144,6 +146,20 @@ class SaveModelStrategy(fl.server.strategy.FedAvg):
 # 4. Main Server Execution
 # ---
 if __name__ == "__main__":
+    # STEP 1: Set up the logger to write to a file and the console.
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
+
+    file_handler = FileHandler("server.log", mode='w')
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+    stream_handler = StreamHandler()
+    stream_handler.setFormatter(formatter)
+    root_logger.addHandler(stream_handler)
+    
+    # --- (Argument parsing is unchanged) ---
     parser = argparse.ArgumentParser(description="Flower Server for CSV Data")
 
     parser.add_argument(
@@ -173,10 +189,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # 1. Initialize the global model
+    # Initialize the global model
     net = MLP(num_features=args.features, num_classes=args.classes).to(DEVICE)
     initial_parameters = fl.common.ndarrays_to_parameters(get_parameters(net))
-    print("Server model initialized.")
+    logging.info("Server model initialized.")
 
     # 2. Define the strategy, using our new SaveModelStrategy
     strategy = SaveModelStrategy(  # <-- USE THE CUSTOM STRATEGY
@@ -191,15 +207,20 @@ if __name__ == "__main__":
     )
     strategy.num_rounds = args.rounds  # Pass the total number of rounds to the strategy
 
-    # 3. Start the server
+    # Start the server
     server_address = "0.0.0.0:8080"
-    print(f"Starting Flower server at {server_address} for {args.rounds} rounds...")
-    print(f"Waiting for at least {args.clients} client(s) to connect...")
+    logging.info(f"Starting Flower server at {server_address} for {args.rounds} rounds...")
+    logging.info(f"Waiting for at least {args.clients} client(s) to connect...")
 
-    fl.server.start_server(
-        server_address=server_address,
-        config=fl.server.ServerConfig(num_rounds=args.rounds),
-        strategy=strategy,
-    )
-
-    print("Server shutdown. Final model should be saved if all rounds were completed.")
+    # STEP 2: Wrap the blocking server call in a try...finally block.
+    try:
+        fl.server.start_server(
+            server_address=server_address,
+            config=fl.server.ServerConfig(num_rounds=args.rounds),
+            strategy=strategy,
+        )
+    finally:
+        # STEP 3: This code ALWAYS runs, guaranteeing the log file is saved.
+        logging.shutdown()
+        # Use print here because logging is now off.
+        print("\nServer shutdown. Log file flushed.")
